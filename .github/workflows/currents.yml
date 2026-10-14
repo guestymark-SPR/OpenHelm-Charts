@@ -1,0 +1,44 @@
+name: Tidal streams (daily)
+
+# Hourly tidal streams for the next 4 days from the Copernicus Marine NW European Shelf model (1.5 km, tides included),
+# cut into the OpenHelm chart regions and published as release "currents" for the app's route planner and current layer.
+on:
+  schedule:
+    - cron: '40 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  currents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+      COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Copernicus login is set up
+        id: creds
+        run: |
+          if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ] || [ -z "$COPERNICUSMARINE_SERVICE_PASSWORD" ]; then
+            echo "::warning::Add COPERNICUSMARINE_SERVICE_USERNAME and COPERNICUSMARINE_SERVICE_PASSWORD as repository secrets to enable tidal streams"; echo "ok=0" >> $GITHUB_OUTPUT
+          else echo "ok=1" >> $GITHUB_OUTPUT; fi
+      - uses: actions/setup-python@v5
+        if: steps.creds.outputs.ok == '1'
+        with:
+          python-version: '3.12'
+      - name: Download and cut tidal streams
+        if: steps.creds.outputs.ok == '1'
+        run: |
+          pip install -q copernicusmarine xarray netCDF4 numpy dask
+          python tools/currents.py currents 2>&1 | tee currents.log | grep -E "::|using|grid|datasets|failed" | tail -40
+          test -s currents/index.json || { tail -25 currents.log | sed 's/^/::error::/'; exit 1; }
+      - name: Publish
+        if: steps.creds.outputs.ok == '1'
+        run: |
+          gh release view currents > /dev/null 2>&1 || gh release create currents --title "Tidal streams (updated daily)" --notes "Hourly surface currents including tides for the next 4 days, from the Copernicus Marine Service NW European Shelf model (1.5 km). Generated using E.U. Copernicus Marine Service Information." --latest=false
+          gh release upload currents currents/* --clobber
+          echo "::notice::published $(ls currents | wc -l) files"
