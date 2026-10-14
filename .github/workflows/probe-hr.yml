@@ -1,0 +1,17 @@
+name: Probe high-resolution depth grids
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Search EMODnet catalogue for high-resolution DTMs in UK waters
+        run: |
+          cat > q.json <<'J'
+          {"size":200,"_source":["resourceTitleObject.default","metadataIdentifier","geom","link"],
+           "query":{"bool":{"must":[{"query_string":{"query":"HRDTM OR \"high resolution\" OR HR-DTM"}}],
+           "filter":[{"geo_shape":{"geom":{"shape":{"type":"envelope","coordinates":[[-11,61],[2.5,49.5]]},"relation":"intersects"}}}]}}}
+          J
+          curl -s -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' --data @q.json "https://emodnet.ec.europa.eu/geonetwork/srv/api/search/records/_search" -o r.json
+          head -c 300 r.json; echo
+          jq -r '.hits.hits[]._source | [.metadataIdentifier, (.resourceTitleObject.default|tostring), ((.link//[])|map(.urlObject.default//.url//"")|map(select(test("high_resolution|\\.zip")))|join(" "))] | join(" | ")' r.json | head -120 | while read l; do echo "::notice::$l"; done
+          jq '.hits.total' r.json
