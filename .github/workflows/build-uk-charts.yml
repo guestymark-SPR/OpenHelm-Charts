@@ -102,7 +102,7 @@ jobs:
           ogr2ogr -f GeoJSONSeq -t_srs EPSG:4326 areas.geojsonseq areas.shp -sql "SELECT -emax AS dmin, -emin AS dmax FROM areas WHERE emin < 5"
           ogr2ogr -f GeoJSONSeq -t_srs EPSG:4326 contours.geojsonseq contours.shp -sql "SELECT -elev AS depth FROM contours"
           python3 tools/soundings.py depth.tif soundings.geojsonseq | sed 's/^/::notice::/'
-          tippecanoe -o depth.mbtiles -Z5 -z14 --force -P --no-tile-size-limit --coalesce-densest-as-needed --simplification=4 \
+          tippecanoe -o depth.mbtiles -Z5 -z14 --force -P --no-tile-size-limit --coalesce-densest-as-needed --simplification=2 --simplify-only-low-zooms --no-tiny-polygon-reduction \
             -L'{"file":"areas.geojsonseq","layer":"depth_area"}' -L'{"file":"contours.geojsonseq","layer":"depth_contour"}' \
             -L'{"file":"soundings.geojsonseq","layer":"sounding"}' > tippecanoe.log 2>&1 || { tail -5 tippecanoe.log | sed 's/^/::error::/'; exit 1; }
           echo "::notice::depth.mbtiles $(du -h depth.mbtiles | cut -f1)"
