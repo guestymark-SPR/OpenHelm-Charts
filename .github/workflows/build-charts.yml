@@ -78,7 +78,7 @@ jobs:
         run: |
           IFS=, read W S E N <<< "$BOUNDS"
           [ "$OSM_PBF" = "area.osm.pbf" ] || osmium extract -b "$W,$S,$E,$N" "$OSM_PBF" -o area.osm.pbf --overwrite
-          osmium tags-filter area.osm.pbf nwr/seamark:type nwr/leisure=marina n/waterway=fuel nwr/leisure=slipway -o sea.osm.pbf --overwrite
+          osmium tags-filter area.osm.pbf nwr/seamark:type nwr/leisure=marina,slipway nw/waterway=fuel,sanitary_dump_station,boatyard nwr/amenity=toilets,shower,drinking_water,water_point,sanitary_dump_station,waste_disposal,recycling,restaurant,cafe,pub,bar,fast_food,atm nwr/shop=boat,chandler,ship_chandler,marine,supermarket,convenience,laundry,boat_repair nwr/craft=boatbuilder,sailmaker n/man_made=crane nwr/club=sailing nwr/office=harbour_master nwr/phone nwr/contact:phone nwr/website nwr/contact:website -o sea.osm.pbf --overwrite
           osmium export sea.osm.pbf -o sea.geojsonseq -f geojsonseq --overwrite --geometry-types=point,linestring,polygon -a type,id
           python3 tools/seamarks.py sea.geojsonseq seamarks.geojsonseq
           echo "::notice::seamark features $(wc -l < seamarks.geojsonseq)"
