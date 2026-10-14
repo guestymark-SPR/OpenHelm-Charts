@@ -1,0 +1,134 @@
+name: Build chart pack
+
+# Builds an offline vector chart pack (MBTiles) from open data:
+#  - OpenStreetMap base (land, water, coast, places, roads) via Planetiler / OpenMapTiles schema
+#  - Seamarks, harbours and marinas from OpenStreetMap
+#  - Depth areas, contours and soundings from EMODnet Bathymetry (chart datum: LAT)
+on:
+  workflow_dispatch:
+    inputs:
+      pack:
+        description: Pack id
+        default: bristol-channel
+      title:
+        description: Pack name shown in the app
+        default: Bristol Channel & South Wales
+      bounds:
+        description: west,south,east,north
+        default: "-5.45,50.85,-2.55,51.85"
+      area:
+        description: Geofabrik extract for OpenStreetMap data
+        default: great-britain
+      maxzoom:
+        description: Highest zoom level
+        default: "14"
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PACK: ${{ inputs.pack }}
+      BOUNDS: ${{ inputs.bounds }}
+      AREA: ${{ inputs.area }}
+      MAXZ: ${{ inputs.maxzoom }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin osmium-tool sqlite3 libsqlite3-dev zlib1g-dev build-essential > /dev/null
+          git clone -q --depth 1 https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+          make -s -C /tmp/tippecanoe -j4 && sudo make -s -C /tmp/tippecanoe install
+          curl -fsSL -o planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+          tippecanoe --version; ogr2ogr --version; osmium --version | head -1
+
+      - name: Restore cached base map
+        uses: actions/cache@v4
+        with:
+          path: |
+            base.mbtiles
+            area.osm.pbf
+            water.zip
+          key: base-${{ inputs.pack }}-${{ inputs.maxzoom }}-v2
+
+      - name: Base map from OpenStreetMap (Planetiler)
+        run: |
+          if [ -f base.mbtiles ] && [ -f area.osm.pbf ]; then echo "Using cached base map"; echo "OSM_PBF=area.osm.pbf" >> $GITHUB_ENV; exit 0; fi
+          java -Xmx11g -jar planetiler.jar --download --area="$AREA" --bounds="$BOUNDS" \
+            --maxzoom="$MAXZ" --exclude_layers=building,housenumber,poi,aerodrome_label,park \
+            --output=base.mbtiles --force > planetiler.log 2>&1 || true
+          tail -15 planetiler.log
+          if [ ! -s base.mbtiles ] || [ $(stat -c %s base.mbtiles) -lt 100000 ]; then grep -iE "error|exception|usage|invalid|fail" planetiler.log | head -15 | sed 's/^/::error::/'; tail -8 planetiler.log | sed 's/^/::error::/'; exit 1; fi
+          cp "$(ls data/sources/water*polygons*.zip | head -1)" water.zip
+          ls -la base.mbtiles
+          echo "::notice::base.mbtiles $(du -h base.mbtiles | cut -f1)"
+          echo "OSM_PBF=$(ls data/sources/*.osm.pbf | head -1)" >> $GITHUB_ENV
+
+      - name: Seamarks and marinas
+        run: |
+          IFS=, read W S E N <<< "$BOUNDS"
+          [ "$OSM_PBF" = "area.osm.pbf" ] || osmium extract -b "$W,$S,$E,$N" "$OSM_PBF" -o area.osm.pbf --overwrite
+          osmium tags-filter area.osm.pbf nwr/seamark:type nwr/leisure=marina n/waterway=fuel nwr/leisure=slipway -o sea.osm.pbf --overwrite
+          osmium export sea.osm.pbf -o sea.geojsonseq -f geojsonseq --overwrite --geometry-types=point,linestring,polygon -a type,id
+          python3 tools/seamarks.py sea.geojsonseq seamarks.geojsonseq
+          echo "::notice::seamark features $(wc -l < seamarks.geojsonseq)"
+          tippecanoe -o seamarks.mbtiles -l seamark -Z9 -z"$MAXZ" -r1 --no-feature-limit --no-tile-size-limit -P --force seamarks.geojsonseq
+
+      - name: Depth from EMODnet Bathymetry
+        run: |
+          IFS=, read W S E N <<< "$BOUNDS"
+          python3 tools/emodnet.py "$W" "$S" "$E" "$N" depth.tif || { echo '::error::EMODnet download failed'; exit 1; }
+          # keep depth data only in the sea: mask the grid with OpenStreetMap's coastline (ocean polygons)
+          SHP=$(unzip -Z1 water.zip | grep '\.shp$' | head -1)
+          echo "::notice::coastline file $SHP"
+          ogr2ogr -f "ESRI Shapefile" water.shp "/vsizip/water.zip/$SHP" -spat "$W" "$S" "$E" "$N" -spat_srs EPSG:4326 -t_srs EPSG:4326 -nln water -nlt PROMOTE_TO_MULTI 2>&1 | tail -3 || true
+          [ -s water.shp ] || { echo "::error::coastline clip produced nothing"; exit 1; }
+          gdal_translate -q -ot Float32 depth.tif masked.tif || { echo "::error::copy grid failed"; exit 1; }
+          gdal_rasterize -q -i -at -burn 99999 -l water water.shp masked.tif 2>&1 | sed 's/^/::warning::/' || true
+          gdal_translate -q -a_nodata 99999 -co COMPRESS=DEFLATE masked.tif depth.tif || { echo "::error::mask apply failed"; exit 1; }
+          gdalinfo -stats depth.tif | grep -E "Size is|Minimum" | head -3 | sed 's/^/::notice::/'
+          # filled depth areas between chart-style contour levels (values are elevations: negative = depth below LAT)
+          set -o pipefail
+          gdal_contour -p -amin emin -amax emax -fl -2000 -1000 -500 -200 -100 -50 -30 -20 -15 -10 -5 -2 0 5 \
+            depth.tif areas.shp
+          gdal_contour -a elev -fl -2000 -1000 -500 -200 -100 -50 -30 -20 -15 -10 -5 -2 0 depth.tif contours.shp
+          ogr2ogr -f GeoJSONSeq -t_srs EPSG:4326 areas.geojsonseq areas.shp -sql "SELECT -emax AS dmin, -emin AS dmax FROM areas WHERE emin < 5"
+          ogr2ogr -f GeoJSONSeq -t_srs EPSG:4326 contours.geojsonseq contours.shp -sql "SELECT -elev AS depth FROM contours"
+          python3 tools/soundings.py depth.tif soundings.geojsonseq
+          tippecanoe -o depth.mbtiles -Z5 -z"$MAXZ" --force -P --no-tile-size-limit --coalesce-densest-as-needed --simplification=4 \
+            -L'{"file":"areas.geojsonseq","layer":"depth_area"}' -L'{"file":"contours.geojsonseq","layer":"depth_contour"}' \
+            -L'{"file":"soundings.geojsonseq","layer":"sounding"}'
+
+      - name: Join into one chart pack
+        run: |
+          set -o pipefail
+          python3 tools/merge.py "$PACK.mbtiles" base.mbtiles seamarks.mbtiles depth.mbtiles 2>&1 | tee merge.log || { tail -20 merge.log | sed 's/^/::error::/'; exit 1; }
+          IFS=, read W S E N <<< "$BOUNDS"
+          sqlite3 "$PACK.mbtiles" "INSERT OR REPLACE INTO metadata(name,value) VALUES('name','${{ inputs.title }}'),('openhelm_pack','$PACK'),('bounds','$BOUNDS'),('center','$(python3 -c "print(($W+$E)/2,($S+$N)/2,11,sep=',')")'),('version','$(date -u +%Y-%m-%d)'),('attribution','© OpenStreetMap contributors, © OpenMapTiles, EMODnet Bathymetry');"
+          sqlite3 "$PACK.mbtiles" "VACUUM;"
+          ls -la *.mbtiles
+          sqlite3 "$PACK.mbtiles" "SELECT zoom_level, COUNT(*), SUM(LENGTH(tile_data))/1024 AS kb FROM tiles GROUP BY zoom_level;" | sed 's/^/::notice::z|tiles|kb /'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.pack }}
+          path: ${{ inputs.pack }}.mbtiles
+          compression-level: 0
+
+      - name: Publish pack as a release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: charts-${{ inputs.pack }}
+          name: Chart pack – ${{ inputs.title }}
+          body: OpenHelm offline chart pack. Built ${{ github.run_id }} from OpenStreetMap and EMODnet Bathymetry (depths at chart datum, LAT).
+          files: ${{ inputs.pack }}.mbtiles
