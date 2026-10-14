@@ -89,7 +89,8 @@ jobs:
         run: |
           set -o pipefail
           IFS=, read W S E N <<< "$BOUNDS"
-          python3 tools/emodnet.py "$W" "$S" "$E" "$N" depth.tif > emodnet.log 2>&1 || { tail -5 emodnet.log | sed 's/^/::error::/'; exit 1; }
+          python3 -u tools/emodnet.py "$W" "$S" "$E" "$N" depth.tif > emodnet.log 2>&1 || { tail -8 emodnet.log | sed 's/^/::error::/'; exit 1; }
+          grep -E "::warning::|depth chunks" emodnet.log | sed 's/^depth/::notice::depth/' || true
           SHP=$(unzip -Z1 water.zip | grep '\.shp$' | head -1)
           ogr2ogr -f "ESRI Shapefile" water.shp "/vsizip/water.zip/$SHP" -spat "$W" "$S" "$E" "$N" -spat_srs EPSG:4326 -t_srs EPSG:4326 -nln water -nlt PROMOTE_TO_MULTI
           gdal_translate -q -ot Float32 depth.tif masked.tif
