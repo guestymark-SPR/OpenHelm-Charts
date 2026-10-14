@@ -13,5 +13,5 @@ jobs:
           J
           curl -s -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' --data @q.json "https://emodnet.ec.europa.eu/geonetwork/srv/api/search/records/_search" -o r.json
           head -c 300 r.json; echo
-          jq -r '.hits.hits[]._source | [.metadataIdentifier, (.resourceTitleObject.default|tostring), ((.link//[])|map(.urlObject.default//.url//"")|map(select(test("high_resolution|\\.zip")))|join(" "))] | join(" | ")' r.json | head -120 | while read l; do echo "::notice::$l"; done
-          jq '.hits.total' r.json
+          echo "::notice::total $(jq -c '.hits.total' r.json)"
+          jq -r '[.hits.hits[]._source | (.resourceTitleObject.default|tostring)] | join(" ; ")' r.json | fold -w 3500 | while read -r l; do echo "::notice::$l"; done
