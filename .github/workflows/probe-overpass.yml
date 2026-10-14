@@ -4,16 +4,15 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Compare queries around Penarth Marina
+      - name: Try request variants
         run: |
-          A='around:450,51.4462,-3.1744'
-          OLD="[out:json][timeout:20];(nwr($A)[\"amenity\"~\"^(toilets|shower|drinking_water|restaurant|cafe|pub|bar)\$\"];nwr($A)[\"shop\"~\"^(boat|chandler|supermarket|convenience)\$\"];nwr($A)[\"waterway\"=\"fuel\"];nwr($A)[\"leisure\"~\"^(slipway|marina)\$\"];nwr($A)[\"seamark:type\"];nwr($A)[\"phone\"];nwr($A)[\"contact:phone\"];nwr($A)[\"website\"];nwr($A)[\"contact:website\"];);out center tags 400;"
-          NEW="[out:json][timeout:25];nwr($A)->.a;(nwr.a[\"amenity\"~\"^(toilets|shower|drinking_water|restaurant|cafe|pub|bar)\$\"];nwr.a[\"shop\"~\"^(boat|chandler|supermarket|convenience)\$\"];nwr.a[\"waterway\"=\"fuel\"];nwr.a[\"leisure\"~\"^(slipway|marina)\$\"];nwr.a[\"seamark:type\"];nwr.a[\"phone\"];nwr.a[\"contact:phone\"];nwr.a[\"website\"];nwr.a[\"contact:website\"];);out center tags 400;"
-          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter; do
-            for q in OLD NEW; do
-              s=$(date +%s.%N); code=$(curl -s -o out.json -w "%{http_code}" --max-time 60 --data-urlencode "data=${!q}" "$ep"); t=$(echo "$(date +%s.%N) - $s" | bc)
-              n=$(jq '.elements|length' out.json 2>/dev/null || echo "?"); rem=$(jq -r '.remark // ""' out.json 2>/dev/null | head -c 200)
-              echo "::notice::$ep $q -> HTTP $code, $n elements, ${t}s $rem"
-            done
+          Q='[out:json][timeout:25];nwr(around:450,51.4462,-3.1744)->.a;(nwr.a["amenity"];nwr.a["shop"];nwr.a["waterway"="fuel"];nwr.a["leisure"];nwr.a["phone"];nwr.a["website"];);out center tags 400;'
+          try(){ name=$1; shift; s=$(date +%s.%N); code=$(curl -s -o out.json -D hdr.txt -w "%{http_code}" --max-time 45 "$@"); t=$(echo "$(date +%s.%N) - $s" | bc); n=$(jq '.elements|length' out.json 2>/dev/null || echo "?")
+            echo "::notice::$name -> HTTP $code, $n elements, ${t}s | $(head -c 160 out.json | tr '\n' ' ')"; }
+          for ep in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter https://overpass.kumi.systems/api/interpreter; do
+            try "$ep POST curl-UA" --data-urlencode "data=$Q" "$ep"
+            try "$ep POST app-UA" -A "OpenHelm/2.1 (Android chart plotter)" --data-urlencode "data=$Q" "$ep"
+            try "$ep POST app-UA+contact" -A "OpenHelm/3.0 (+https://github.com/guestymark-SPR/OpenHelm-Charts)" -H "Accept: application/json" --data-urlencode "data=$Q" "$ep"
+            try "$ep GET app-UA+contact" -A "OpenHelm/3.0 (+https://github.com/guestymark-SPR/OpenHelm-Charts)" -G --data-urlencode "data=$Q" "$ep"
           done
-          jq -r '.elements[]|[.tags.name//"-",(.tags|to_entries|map(select(.key|test("^(amenity|shop|leisure|waterway|seamark:type|phone|contact:phone|website|vhf|operator)$"))|"\(.key)=\(.value)")|join(" "))]|join(" | ")' out.json | head -40
+          jq -r '.elements[]|[.tags.name//"-",(.tags|to_entries|map(select(.key|test("^(amenity|shop|leisure|waterway|phone|website|vhf|operator)$"))|"\(.key)=\(.value)")|join(" "))]|join(" | ")' out.json 2>/dev/null | head -50
