@@ -1,0 +1,51 @@
+{
+ "name": "Race Red",
+ "sub": "B&G-style: black with red highlights",
+ "sw": [
+  "#0b0b0b",
+  "#e2001a",
+  "#ffffff"
+ ],
+ "vars": {
+  "dusk": {
+   "--bg": "#0b0b0b",
+   "--glass": "rgba(20,20,20,.95)",
+   "--glass-2": "rgba(38,38,38,.96)",
+   "--solid": "#141414",
+   "--line": "rgba(255,255,255,.13)",
+   "--fg": "#ffffff",
+   "--muted": "#bdbdbd",
+   "--dim": "#7d7d7d",
+   "--accent": "#e2001a",
+   "--accent-fg": "#ffffff",
+   "--route": "#ff2b3d",
+   "--track": "#f2f2f2",
+   "--cyan": "#9ad3ff"
+  },
+  "day": {
+   "--bg": "#eceef0",
+   "--glass": "rgba(255,255,255,.96)",
+   "--glass-2": "#f4f4f4",
+   "--fg": "#0a0a0a",
+   "--muted": "#454545",
+   "--accent": "#c8001a",
+   "--accent-fg": "#ffffff",
+   "--route": "#c8001a",
+   "--track": "#202020"
+  }
+ },
+ "boxes": {
+  "dusk": {
+   "top": "#000000",
+   "side": "#1b1b1b",
+   "bottom": "#000000",
+   "panel": "#121212"
+  },
+  "day": {
+   "top": "#1a1a1a",
+   "side": "#262626",
+   "bottom": "#1a1a1a"
+  }
+ },
+ "chart": "std"
+}

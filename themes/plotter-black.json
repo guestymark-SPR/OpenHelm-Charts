@@ -1,0 +1,51 @@
+{
+ "name": "Plotter Black",
+ "sub": "Raymarine-style: black panels, white figures, blue highlights",
+ "sw": [
+  "#000000",
+  "#1a9ae0",
+  "#ff8c1a"
+ ],
+ "vars": {
+  "dusk": {
+   "--bg": "#000000",
+   "--glass": "rgba(16,16,16,.95)",
+   "--glass-2": "rgba(34,34,34,.96)",
+   "--solid": "#111111",
+   "--line": "rgba(255,255,255,.14)",
+   "--fg": "#ffffff",
+   "--muted": "#b5b5b5",
+   "--dim": "#7a7a7a",
+   "--accent": "#1a9ae0",
+   "--accent-fg": "#ffffff",
+   "--route": "#ff8c1a",
+   "--track": "#1a9ae0",
+   "--cyan": "#4fc3f7"
+  },
+  "day": {
+   "--bg": "#e9ecef",
+   "--glass": "rgba(255,255,255,.96)",
+   "--glass-2": "#f3f4f6",
+   "--fg": "#000000",
+   "--muted": "#444444",
+   "--accent": "#0a7cc4",
+   "--accent-fg": "#ffffff",
+   "--route": "#e86c00",
+   "--track": "#0a7cc4"
+  }
+ },
+ "boxes": {
+  "dusk": {
+   "top": "#000000",
+   "side": "#141414",
+   "bottom": "#000000",
+   "panel": "#101010"
+  },
+  "day": {
+   "top": "#111111",
+   "side": "#1c1c1c",
+   "bottom": "#111111"
+  }
+ },
+ "chart": "std"
+}

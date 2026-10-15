@@ -1,0 +1,49 @@
+{
+ "name": "Sail Teal",
+ "sub": "savvy navvy-style: clean white with teal highlights",
+ "sw": [
+  "#ffffff",
+  "#15b3a3",
+  "#0f2a3d"
+ ],
+ "vars": {
+  "day": {
+   "--bg": "#f4f7f8",
+   "--glass": "rgba(255,255,255,.97)",
+   "--glass-2": "#f1f6f7",
+   "--solid": "#ffffff",
+   "--fg": "#0f2a3d",
+   "--muted": "#5a6e7c",
+   "--line": "rgba(15,42,61,.12)",
+   "--accent": "#15b3a3",
+   "--accent-fg": "#ffffff",
+   "--route": "#15b3a3",
+   "--track": "#2b6cb0",
+   "--cyan": "#15b3a3"
+  },
+  "dusk": {
+   "--bg": "#0f2a3d",
+   "--glass": "rgba(19,48,68,.93)",
+   "--glass-2": "rgba(28,62,86,.94)",
+   "--solid": "#123349",
+   "--accent": "#2ccdbb",
+   "--accent-fg": "#062a26",
+   "--route": "#2ccdbb",
+   "--track": "#7fb6ff"
+  }
+ },
+ "boxes": {
+  "day": {
+   "top": "#ffffff",
+   "side": "#ffffff",
+   "bottom": "#ffffff",
+   "panel": "#ffffff"
+  },
+  "dusk": {
+   "top": "#0f2a3d",
+   "side": "#123349",
+   "bottom": "#0f2a3d"
+  }
+ },
+ "chart": "std"
+}

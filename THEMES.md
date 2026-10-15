@@ -23,5 +23,9 @@ A release needs one asset, `theme.json`. The first line of the release descripti
 - Leave `night` empty to keep the red night-vision colours.
 - `layout` (optional): `standard`, `left` or `big`.
 - `sw`: up to three swatch colours for the theme card.
+- `boxes` (optional): colours of the boxes around the chart per mode (`day`, `dusk`): `top`, `side`, `bottom`, `panel`.
+- `chart` (optional): `almanac` or `std` chart style to switch to when the theme is chosen.
 
-Planned (shown in the app as "Available soon"): `teak`, `racing`, `midnight`, `paper`. Publishing a release with one of these ids makes it downloadable.
+To publish: add `themes/<id>.json` and push; the *Publish themes* workflow creates or updates the `theme-<id>` release.
+
+Published: `plotter-black`, `race-red`, `chart-blue`, `sail-teal`. Planned (shown in the app as "Available soon"): `teak`, `racing`, `midnight`, `paper`. Publishing a release with one of these ids makes it downloadable.

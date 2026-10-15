@@ -1,0 +1,28 @@
+name: Publish themes
+on:
+  push:
+    branches: [main]
+    paths: ['themes/**', '.github/workflows/themes.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: One release per theme (theme-<id>, asset theme.json)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          for f in themes/*.json; do
+            id=$(basename "$f" .json)
+            python3 -c "import json,sys; json.load(open('$f'))"
+            name=$(python3 -c "import json; print(json.load(open('$f'))['name'])")
+            sub=$(python3 -c "import json; print(json.load(open('$f')).get('sub',''))")
+            mkdir -p out/$id && cp "$f" out/$id/theme.json
+            gh release view "theme-$id" > /dev/null 2>&1 || gh release create "theme-$id" --title "Theme – $name" --notes "$sub" --latest=false
+            gh release edit "theme-$id" --title "Theme – $name" --notes "$sub"
+            gh release upload "theme-$id" out/$id/theme.json --clobber
+          done

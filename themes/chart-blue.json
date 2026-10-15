@@ -1,0 +1,49 @@
+{
+ "name": "Chart App Blue",
+ "sub": "Navionics-style: white bars, blue highlights, yellow-land charts",
+ "sw": [
+  "#ffffff",
+  "#0b6fc2",
+  "#f8e8a0"
+ ],
+ "vars": {
+  "day": {
+   "--bg": "#f2f5f8",
+   "--glass": "rgba(255,255,255,.97)",
+   "--glass-2": "#f4f7fa",
+   "--solid": "#ffffff",
+   "--fg": "#13293d",
+   "--muted": "#50657a",
+   "--line": "rgba(19,41,61,.14)",
+   "--accent": "#0b6fc2",
+   "--accent-fg": "#ffffff",
+   "--route": "#d6007a",
+   "--track": "#0b6fc2",
+   "--cyan": "#0b6fc2"
+  },
+  "dusk": {
+   "--bg": "#0b1d33",
+   "--glass": "rgba(14,34,58,.93)",
+   "--glass-2": "rgba(22,48,80,.94)",
+   "--solid": "#0e2440",
+   "--accent": "#2f8fe0",
+   "--accent-fg": "#ffffff",
+   "--route": "#ff4fa8",
+   "--track": "#6fc0ff"
+  }
+ },
+ "boxes": {
+  "day": {
+   "top": "#ffffff",
+   "side": "#ffffff",
+   "bottom": "#ffffff",
+   "panel": "#ffffff"
+  },
+  "dusk": {
+   "top": "#0e2440",
+   "side": "#0e2440",
+   "bottom": "#0e2440"
+  }
+ },
+ "chart": "almanac"
+}
