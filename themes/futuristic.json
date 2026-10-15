@@ -1,0 +1,49 @@
+{
+ "name": "Futuristic",
+ "sub": "Neon HUD: glowing cyan, chamfered panels, scanlines, sci-fi sounds and a new layout",
+ "sw": ["#02060d", "#00e5ff", "#ff2bd6"],
+ "style": "futuristic",
+ "sound": "blip",
+ "fonts": {"display": "orbitron:700", "ui": "rajdhani:600"},
+ "vars": {
+  "dusk": {
+   "--bg": "#02060d",
+   "--glass": "rgba(3,10,20,.80)",
+   "--glass-2": "rgba(6,20,34,.92)",
+   "--solid": "#030b16",
+   "--hover": "rgba(0,229,255,.08)",
+   "--line": "rgba(0,229,255,.20)",
+   "--fg": "#d8f6ff",
+   "--muted": "#6fa8bd",
+   "--dim": "#3f6d80",
+   "--accent": "#00e5ff",
+   "--accent-fg": "#001018",
+   "--cyan": "#00e5ff",
+   "--good": "#7cff6b",
+   "--warn": "#ffd23f",
+   "--bad": "#ff3864",
+   "--route": "#ff2bd6",
+   "--track": "#7cff6b",
+   "--ais": "#b18cff",
+   "--mark": "#00ffc8",
+   "--shadow": "0 0 24px rgba(0,229,255,.12)"
+  },
+  "day": {
+   "--bg": "#dff3f8",
+   "--glass": "rgba(236,250,253,.90)",
+   "--glass-2": "rgba(222,244,250,.96)",
+   "--solid": "#f2fcfe",
+   "--hover": "rgba(0,120,150,.08)",
+   "--line": "rgba(0,120,150,.25)",
+   "--fg": "#03242e",
+   "--muted": "#2f6474",
+   "--accent": "#0090b0",
+   "--accent-fg": "#ffffff",
+   "--cyan": "#0090b0",
+   "--route": "#d1009e",
+   "--track": "#1f9e10",
+   "--mark": "#008f74"
+  }
+ },
+ "chart": "std"
+}

@@ -29,3 +29,13 @@ A release needs one asset, `theme.json`. The first line of the release descripti
 To publish: add `themes/<id>.json` and push; the *Publish themes* workflow creates or updates the `theme-<id>` release.
 
 Published: `plotter-black`, `race-red`, `chart-blue`, `sail-teal`. Planned (shown in the app as "Available soon"): `teak`, `racing`, `midnight`, `paper`. Publishing a release with one of these ids makes it downloadable.
+
+## Extra fields (app build 51 and later)
+
+| Field | What it does |
+|---|---|
+| `style` | Switches on a whole look built into the app. Only `"futuristic"` exists so far: chamfered neon panels, scanlines, glowing figures, the side menu centred, and the navigation card moved to the top. |
+| `sound` | The button sound the theme uses: `tick`, `click`, `tap`, `pop`, `beep`, `ping`, `chime`, `blip` or `none`. The skipper's own choice comes back when they change theme. |
+| `fonts` | Free fonts from Fontsource as `"family:weight"`, for `display` (labels and headings) and `ui` (text and figures), e.g. `"orbitron:700"`. The publishing workflow downloads them and puts them inside `theme.json`, so they work offline. |
+
+Installed themes can be uninstalled in Settings → Themes (the Uninstall button in the download list, or ✕ on the theme card).

@@ -21,7 +21,24 @@ jobs:
             python3 -c "import json,sys; json.load(open('$f'))"
             name=$(python3 -c "import json; print(json.load(open('$f'))['name'])")
             sub=$(python3 -c "import json; print(json.load(open('$f')).get('sub',''))")
-            mkdir -p out/$id && cp "$f" out/$id/theme.json
+            mkdir -p out/$id
+            # a theme can name free (SIL Open Font Licence) fonts: they are fetched here and put inside theme.json so they work offline
+            python3 - "$f" "out/$id/theme.json" <<'PY'
+          import json, sys, base64, urllib.request
+          src, dst = sys.argv[1], sys.argv[2]
+          t = json.load(open(src))
+          fonts = t.pop('fonts', None)
+          if fonts:
+              t['fontData'] = {}
+              for k, spec in fonts.items():
+                  fam, w = spec.split(':')
+                  url = f'https://cdn.jsdelivr.net/fontsource/fonts/{fam}@latest/latin-{w}-normal.woff2'
+                  data = urllib.request.urlopen(url, timeout=60).read()
+                  assert data[:4] == b'wOF2', url
+                  t['fontData'][k] = 'data:font/woff2;base64,' + base64.b64encode(data).decode()
+                  print(k, fam, w, len(data), 'bytes')
+          json.dump(t, open(dst, 'w'), separators=(',', ':'))
+          PY
             gh release view "theme-$id" > /dev/null 2>&1 || gh release create "theme-$id" --title "Theme – $name" --notes "$sub" --latest=false
             gh release edit "theme-$id" --title "Theme – $name" --notes "$sub"
             gh release upload "theme-$id" out/$id/theme.json --clobber
