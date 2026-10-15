@@ -1,0 +1,135 @@
+name: Build European chart packs
+
+# Builds the packs in tools/regions-eu.json one after another: each one is published as release charts-<id>
+# (so it can be downloaded in the app) before the next one starts. Same recipe as the UK packs:
+# OpenStreetMap base map, seamarks and marinas, EMODnet Bathymetry depths (chart datum, LAT), coast-trimmed.
+on:
+  workflow_dispatch:
+    inputs:
+      queue:
+        description: Packs to build, in order (comma-separated ids from tools/regions-eu.json)
+        default: "france-north,france-biscay,benelux,ireland,germany-denmark,norway-south,spain-portugal,med-spain,med-france"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: europe-charts
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
+      QUEUE: ${{ inputs.queue }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Which pack
+        run: |
+          ID="${QUEUE%%,*}"; REST="${QUEUE#*,}"; [ "$REST" = "$QUEUE" ] && REST=""
+          python3 - "$ID" <<'PY'
+          import json, sys, os
+          r = next((x for x in json.load(open('tools/regions-eu.json')) if x['id'] == sys.argv[1]), None)
+          if not r: print(f'::error::unknown pack {sys.argv[1]}'); sys.exit(1)
+          w, s, e, n = r['bounds']; pad = .05
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f"PACK={r['id']}\nTITLE={r['title']}\nSOURCES={' '.join(r['sources'])}\n")
+              f.write(f"BOUNDS={w-pad:.2f},{s-pad:.2f},{e+pad:.2f},{n+pad:.2f}\n")
+          json.dump([r], open('one.json', 'w'))
+          PY
+          echo "REST=$REST" >> $GITHUB_ENV
+          echo "::notice::building $ID (then: ${REST:-nothing})"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h / | tail -1 | sed 's/^/::notice::disk /'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin osmium-tool sqlite3 libsqlite3-dev zlib1g-dev build-essential unzip > /dev/null
+          git clone -q --depth 1 https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+          make -s -C /tmp/tippecanoe -j4 && sudo make -s -C /tmp/tippecanoe install
+          curl -fsSL -o planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+
+      - name: OpenStreetMap data for the area
+        run: |
+          set -e
+          n=0
+          for src in $SOURCES; do
+            n=$((n+1))
+            curl -fsSL --retry 3 -o src$n.osm.pbf "https://download.geofabrik.de/$src-latest.osm.pbf" || { echo "::warning::could not download $src, carrying on without it"; rm -f src$n.osm.pbf; continue; }
+            echo "::notice::$src $(du -h src$n.osm.pbf | cut -f1)"
+            osmium extract -b "$BOUNDS" src$n.osm.pbf -o cut$n.osm.pbf --overwrite -s smart
+            rm src$n.osm.pbf
+          done
+          ls cut*.osm.pbf > /dev/null 2>&1 || { echo "::error::no OpenStreetMap data downloaded"; exit 1; }
+          if [ $(ls cut*.osm.pbf | wc -l) -gt 1 ]; then osmium merge cut*.osm.pbf -o area.osm.pbf --overwrite; else mv cut*.osm.pbf area.osm.pbf; fi
+          rm -f cut*.osm.pbf
+          echo "::notice::area $(du -h area.osm.pbf | cut -f1)"
+
+      - name: Base map (Planetiler)
+        run: |
+          java -Xmx13g -jar planetiler.jar --download --osm-path=area.osm.pbf --bounds="$BOUNDS" --maxzoom=14 \
+            --exclude_layers=building,housenumber,poi,aerodrome_label,park \
+            --output=base.mbtiles --force > planetiler.log 2>&1 || true
+          tail -8 planetiler.log
+          if [ ! -s base.mbtiles ] || [ $(stat -c %s base.mbtiles) -lt 1000000 ]; then grep -iE "error|exception|invalid|fail|memory" planetiler.log | head -15 | sed 's/^/::error::/'; exit 1; fi
+          cp "$(ls data/sources/water*polygons*.zip | head -1)" water.zip
+          rm -rf data/tmp
+          echo "::notice::base.mbtiles $(du -h base.mbtiles | cut -f1)"
+
+      - name: Seamarks and marinas
+        run: |
+          set -o pipefail
+          osmium tags-filter area.osm.pbf nwr/seamark:type nwr/leisure=marina,slipway nw/waterway=fuel,sanitary_dump_station,boatyard nwr/amenity=toilets,shower,drinking_water,water_point,sanitary_dump_station,waste_disposal,recycling,restaurant,cafe,pub,bar,fast_food,atm nwr/shop=boat,chandler,ship_chandler,marine,supermarket,convenience,laundry,boat_repair nwr/craft=boatbuilder,sailmaker n/man_made=crane nwr/club=sailing nwr/office=harbour_master nwr/phone nwr/contact:phone nwr/website nwr/contact:website -o sea.osm.pbf --overwrite
+          osmium export sea.osm.pbf -o sea.geojsonseq -f geojsonseq --overwrite --geometry-types=point,linestring,polygon -a type,id
+          python3 tools/seamarks.py sea.geojsonseq seamarks.geojsonseq
+          echo "::notice::seamark features $(wc -l < seamarks.geojsonseq)"
+          tippecanoe -o seamarks.mbtiles -l seamark -Z9 -z14 -r1 --no-feature-limit --no-tile-size-limit -P --force seamarks.geojsonseq > /dev/null 2>&1 || { echo "::error::seamark tiling failed"; exit 1; }
+
+      - name: Depth from EMODnet Bathymetry (masked to the sea)
+        run: |
+          set -o pipefail
+          IFS=, read W S E N <<< "$BOUNDS"
+          python3 -u tools/emodnet.py "$W" "$S" "$E" "$N" depth.tif > emodnet.log 2>&1 || { tail -8 emodnet.log | sed 's/^/::error::/'; exit 1; }
+          grep -E "::warning::|depth chunks" emodnet.log | sed 's/^depth/::notice::depth/' || true
+          SHP=$(unzip -Z1 water.zip | grep '\.shp$' | head -1)
+          ogr2ogr -f "ESRI Shapefile" water.shp "/vsizip/water.zip/$SHP" -spat "$W" "$S" "$E" "$N" -spat_srs EPSG:4326 -t_srs EPSG:4326 -nln water -nlt PROMOTE_TO_MULTI
+          gdal_translate -q -ot Float32 depth.tif masked.tif
+          gdal_rasterize -q -i -at -burn 99999 -l water water.shp masked.tif
+          gdal_translate -q -a_nodata 99999 -co COMPRESS=DEFLATE -co BIGTIFF=IF_SAFER masked.tif depth.tif && rm masked.tif
+          gdal_contour -q -p -amin emin -amax emax -fl -2000 -1000 -500 -200 -100 -50 -30 -20 -15 -10 -5 -2 0 5 depth.tif areas.shp
+          gdal_contour -q -a elev -fl -2000 -1000 -500 -200 -100 -50 -30 -20 -15 -10 -5 -2 0 depth.tif contours.shp
+          ogr2ogr -f GeoJSONSeq -t_srs EPSG:4326 areas.geojsonseq areas.shp -sql "SELECT -emax AS dmin, -emin AS dmax FROM areas WHERE emin < 5"
+          ogr2ogr -f GeoJSONSeq -t_srs EPSG:4326 contours.geojsonseq contours.shp -sql "SELECT -elev AS depth FROM contours"
+          python3 tools/soundings.py depth.tif soundings.geojsonseq | sed 's/^/::notice::/'
+          tippecanoe -o depth.mbtiles -Z5 -z14 --force -P --no-tile-size-limit --coalesce-densest-as-needed --simplification=2 --simplify-only-low-zooms --no-tiny-polygon-reduction \
+            -L'{"file":"areas.geojsonseq","layer":"depth_area"}' -L'{"file":"contours.geojsonseq","layer":"depth_contour"}' \
+            -L'{"file":"soundings.geojsonseq","layer":"sounding"}' > tippecanoe.log 2>&1 || { tail -5 tippecanoe.log | sed 's/^/::error::/'; exit 1; }
+          echo "::notice::depth.mbtiles $(du -h depth.mbtiles | cut -f1)"
+
+      - name: Cut the pack (coast-trimmed)
+        run: python3 tools/split_packs.py one.json packs base.mbtiles seamarks.mbtiles depth.mbtiles
+
+      - name: Publish the pack
+        run: |
+          f="packs/$PACK.mbtiles"
+          gh release view "charts-$PACK" > /dev/null 2>&1 || gh release create "charts-$PACK" --title "Chart pack – $TITLE" --notes "OpenHelm offline chart pack from OpenStreetMap and EMODnet Bathymetry (depths at chart datum, LAT)."
+          gh release upload "charts-$PACK" "$f" --clobber
+          echo "::notice::published charts-$PACK ($(du -h $f | cut -f1))"
+
+      - name: Start the next pack
+        if: ${{ !cancelled() && env.REST != '' }}
+        run: |
+          gh workflow run build-europe-charts.yml --ref main -f queue="$REST"
+          echo "::notice::next: $REST"
