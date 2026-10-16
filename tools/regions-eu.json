@@ -8,7 +8,7 @@
   {"id": "spain-portugal", "title": "Spain & Portugal Atlantic", "bounds": [-10.0, 35.9, -1.7, 43.9], "sources": ["europe/spain", "europe/portugal"]},
   {"id": "med-spain", "title": "Mediterranean \u00b7 Spain & Balearics", "bounds": [-5.7, 35.9, 4.5, 42.6], "sources": ["europe/spain"]},
   {"id": "med-france", "title": "Mediterranean \u00b7 France & Corsica", "bounds": [2.9, 41.3, 9.8, 43.95], "sources": ["europe/france", "europe/monaco"]},
-  {"id": "crossing-biscay", "title": "Sea crossing \u00b7 Bay of Biscay (Brittany to Spain)", "bounds": [-10.5, 43.3, -4.4, 49.8], "sources": ["europe/france", "europe/spain"]},
+  {"id": "crossing-biscay", "title": "Sea crossing \u00b7 Bay of Biscay & Portugal offshore (UK direct to Spain & Portugal)", "bounds": [-12.5, 36.8, -4.4, 49.8], "sources": ["europe/france", "europe/spain", "europe/portugal"]},
   {"id": "crossing-north-sea", "title": "Sea crossing \u00b7 Southern North Sea (UK to Belgium, Netherlands & Germany)", "bounds": [1.9, 51.1, 7.2, 58.0], "sources": ["europe/belgium", "europe/netherlands", "europe/germany"]},
   {"id": "crossing-norway", "title": "Sea crossing \u00b7 Northern North Sea (Scotland to Norway)", "bounds": [1.8, 57.6, 5.6, 61.2], "sources": ["europe/norway"]}
 ]
