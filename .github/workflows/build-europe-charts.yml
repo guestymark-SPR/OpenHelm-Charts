@@ -9,6 +9,9 @@ on:
       queue:
         description: Packs to build, in order (comma-separated ids from tools/regions-eu.json)
         default: "france-north,france-biscay,benelux,ireland,germany-denmark,norway-south,spain-portugal,med-spain,med-france"
+      tried:
+        description: Packs already attempted in this chain (filled in automatically)
+        default: ""
 
 permissions:
   contents: write
@@ -24,6 +27,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       QUEUE: ${{ inputs.queue }}
+      TRIED: ${{ inputs.tried }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +45,7 @@ jobs:
           json.dump([r], open('one.json', 'w'))
           PY
           echo "REST=$REST" >> $GITHUB_ENV
+          echo "TRIED=${TRIED:+$TRIED,}$ID" >> $GITHUB_ENV
           echo "::notice::building $ID (then: ${REST:-nothing})"
 
       - name: Free disk space
@@ -129,7 +134,14 @@ jobs:
           echo "::notice::published charts-$PACK ($(du -h $f | cut -f1))"
 
       - name: Start the next pack
-        if: ${{ !cancelled() && env.REST != '' }}
+        if: ${{ !cancelled() }}
         run: |
-          gh workflow run build-europe-charts.yml --ref main -f queue="$REST"
-          echo "::notice::next: $REST"
+          # the queue passed in, then any pack in tools/queue.txt that is not published yet and not already tried in this chain
+          NEXT="$REST"
+          while read -r id; do
+            [ -z "$id" ] && continue
+            case ",$NEXT,$TRIED," in *",$id,"*) continue;; esac
+            gh release view "charts-$id" > /dev/null 2>&1 && continue
+            NEXT="${NEXT:+$NEXT,}$id"
+          done < tools/queue.txt
+          if [ -n "$NEXT" ]; then gh workflow run build-europe-charts.yml --ref main -f queue="$NEXT" -f tried="$TRIED"; echo "::notice::next: $NEXT"; else echo "::notice::all packs built"; fi

@@ -10,5 +10,10 @@
   {"id": "med-france", "title": "Mediterranean \u00b7 France & Corsica", "bounds": [2.9, 41.3, 9.8, 43.95], "sources": ["europe/france", "europe/monaco"]},
   {"id": "crossing-biscay", "title": "Sea crossing \u00b7 Bay of Biscay & Portugal offshore (UK direct to Spain & Portugal)", "bounds": [-12.5, 36.8, -4.4, 49.8], "sources": ["europe/france", "europe/spain", "europe/portugal"]},
   {"id": "crossing-north-sea", "title": "Sea crossing \u00b7 Southern North Sea (UK to Belgium, Netherlands & Germany)", "bounds": [1.9, 51.1, 7.2, 58.0], "sources": ["europe/belgium", "europe/netherlands", "europe/germany"]},
-  {"id": "crossing-norway", "title": "Sea crossing \u00b7 Northern North Sea (Scotland to Norway)", "bounds": [1.8, 57.6, 5.6, 61.2], "sources": ["europe/norway"]}
+  {"id": "crossing-norway", "title": "Sea crossing \u00b7 Northern North Sea (Scotland to Norway)", "bounds": [1.8, 57.6, 5.6, 61.2], "sources": ["europe/norway"]},
+  {"id": "atlantic-west", "title": "Atlantic \u00b7 west of Ireland & Scotland (to 12.5\u00b0W)", "bounds": [-12.5, 49.5, -10.8, 61.2], "sources": ["europe/ireland-and-northern-ireland"]},
+  {"id": "north-faroes-norway", "title": "North Atlantic \u00b7 Faroes & Norway (Bergen to \u00c5lesund)", "bounds": [-12.5, 61.0, 8.3, 62.8], "sources": ["europe/faroe-islands", "europe/norway"]},
+  {"id": "gibraltar-morocco", "title": "Gibraltar Strait, Morocco & Alboran Sea", "bounds": [-12.5, 34.4, 0.0, 36.95], "sources": ["europe/spain", "africa/morocco", "africa/algeria"]},
+  {"id": "med-sardinia", "title": "Mediterranean \u00b7 Sardinia & Tyrrhenian Sea", "bounds": [4.5, 36.8, 11.8, 41.4], "sources": ["europe/italy", "africa/tunisia", "africa/algeria"]},
+  {"id": "med-italy-ligurian", "title": "Mediterranean \u00b7 Ligurian Sea, Tuscany & Elba", "bounds": [7.6, 41.3, 11.8, 44.6], "sources": ["europe/italy", "europe/france/corse"]}
 ]
